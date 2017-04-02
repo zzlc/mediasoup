@@ -327,6 +327,19 @@ namespace RTC
 		this->transmittedCounter.Update(packet);
 	}
 
+	void RtpSender::SendRtcpPacket(const RTC::RTCP::Packet* packet)
+	{
+		MS_TRACE();
+
+		if (!this->GetActive())
+			return;
+
+		MS_ASSERT(this->rtpStream, "no RtpStream set");
+
+		// Send the packet.
+		this->transport->SendRtcpPacket(packet);
+	}
+
 	void RtpSender::GetRtcp(RTC::RTCP::CompoundPacket *packet, uint64_t now)
 	{
 		if (!this->rtpStream)

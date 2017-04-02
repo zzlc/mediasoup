@@ -524,7 +524,7 @@ namespace RTC
 		this->selectedTuple->Send(data, len);
 	}
 
-	void Transport::SendRtcpPacket(RTC::RTCP::Packet* packet)
+	void Transport::SendRtcpPacket(const RTC::RTCP::Packet* packet)
 	{
 		MS_TRACE();
 

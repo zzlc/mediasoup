@@ -32,6 +32,7 @@ namespace RTC { namespace RTCP
 
 	public:
 		explicit FeedbackRtpTmmbItem(const uint8_t* data);
+		FeedbackRtpTmmbItem(const FeedbackRtpTmmbItem& item);
 		FeedbackRtpTmmbItem();
 
 		uint32_t GetSsrc() const;
@@ -70,6 +71,14 @@ namespace RTC { namespace RTCP
 	template <typename T>
 	FeedbackRtpTmmbItem<T>::FeedbackRtpTmmbItem()
 	{}
+
+	template <typename T>
+	FeedbackRtpTmmbItem<T>::FeedbackRtpTmmbItem(const FeedbackRtpTmmbItem& item)
+	{
+		this->ssrc = item.ssrc;
+		this->bitrate = item.bitrate;
+		this->overhead = item.overhead;
+	}
 
 	template <typename T>
 	size_t FeedbackRtpTmmbItem<T>::GetSize() const

@@ -10,6 +10,7 @@
 #include "RTC/RTCP/ReceiverReport.hpp"
 #include "RTC/RTCP/SenderReport.hpp"
 #include "RTC/RTCP/Feedback.hpp"
+#include "RTC/RTCP/FeedbackRtpTmmb.hpp"
 #include "Channel/Request.hpp"
 #include "Channel/Notifier.hpp"
 #include "handles/Timer.hpp"
@@ -39,6 +40,8 @@ namespace RTC
 			virtual void onPeerRtcpReceiverReport(RTC::Peer* peer, RTC::RtpSender* rtpSender, RTC::RTCP::ReceiverReport* report) = 0;
 			virtual void onPeerRtcpFeedback(RTC::Peer* peer, RTC::RtpSender* rtpSender, RTC::RTCP::FeedbackPsPacket* packet) = 0;
 			virtual void onPeerRtcpFeedback(RTC::Peer* peer, RTC::RtpSender* rtpSender, RTC::RTCP::FeedbackRtpPacket* packet) = 0;
+			virtual void onPeerRtcpTmmbr(RTC::Peer* peer, RTC::RtpSender* rtpSender, const RTC::RTCP::FeedbackRtpTmmbrItem* item) = 0;
+			virtual void onPeerRtcpTmmbn(RTC::Peer* peer, RTC::RtpReceiver* rtpReceiver, const RTC::RTCP::FeedbackRtpTmmbnItem* item) = 0;
 			virtual void onPeerRtcpSenderReport(RTC::Peer* peer, RTC::RtpReceiver* rtpReceiver, RTC::RTCP::SenderReport* report) = 0;
 			virtual void onFullFrameRequired(RTC::Peer* peer, RTC::RtpSender* rtpSender) = 0;
 		};

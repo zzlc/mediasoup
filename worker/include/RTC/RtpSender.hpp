@@ -53,6 +53,7 @@ namespace RTC
 		RTC::RtpParameters* GetParameters() const;
 		bool GetActive() const;
 		void SendRtpPacket(RTC::RtpPacket* packet);
+		void SendRtcpPacket(const RTC::RTCP::Packet* packet);
 		void GetRtcp(RTC::RTCP::CompoundPacket *packet, uint64_t now);
 		void ReceiveNack(RTC::RTCP::FeedbackRtpNackPacket* nackPacket);
 		void ReceiveRtcpReceiverReport(RTC::RTCP::ReceiverReport* report);

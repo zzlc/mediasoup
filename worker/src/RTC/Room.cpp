@@ -14,6 +14,7 @@ namespace RTC
 	/* Class variables. */
 
 	RTC::RtpCapabilities Room::supportedRtpCapabilities;
+	uint8_t Room::rtcpBuffer[MS_RTCP_BUFFER_SIZE];
 
 	/* Class methods. */
 
@@ -647,6 +648,37 @@ namespace RTC
 		auto& rtpReceiver = this->mapRtpSenderRtpReceiver[rtpSender];
 
 		rtpReceiver->ReceiveRtcpFeedback(packet);
+	}
+
+	void Room::onPeerRtcpTmmbr(RTC::Peer* peer, RTC::RtpSender* rtpSender, const RTC::RTCP::FeedbackRtpTmmbrItem* item)
+	{
+		MS_TRACE();
+
+		MS_ASSERT(this->mapRtpSenderRtpReceiver.find(rtpSender) != this->mapRtpSenderRtpReceiver.end(), "RtpSender not present in the map");
+
+		auto& rtpReceiver = this->mapRtpSenderRtpReceiver[rtpSender];
+
+		rtpReceiver->ReceiveRtcpTmmbr(item);
+	}
+
+	void Room::onPeerRtcpTmmbn(RTC::Peer* peer, RTC::RtpReceiver* rtpReceiver, const RTC::RTCP::FeedbackRtpTmmbnItem* item)
+	{
+		MS_TRACE();
+
+		MS_ASSERT(this->mapRtpReceiverRtpSenders.find(rtpReceiver) != this->mapRtpReceiverRtpSenders.end(), "RtpReceiver not present in the map");
+
+		auto& rtpSenders = this->mapRtpReceiverRtpSenders[rtpReceiver];
+
+		// Send the TMMBN to all the RtpSenders associated to the RtpReceiver
+		// from which it was received.
+		RTCP::FeedbackRtpTmmbnPacket packet(0, 0);
+		packet.AddItem(new RTCP::FeedbackRtpTmmbnItem(*item));
+		packet.Serialize(Room::rtcpBuffer);
+
+		for (auto& rtpSender : rtpSenders)
+		{
+			rtpSender->SendRtcpPacket(&packet);
+		}
 	}
 
 	void Room::onPeerRtcpSenderReport(RTC::Peer* peer, RTC::RtpReceiver* rtpReceiver, RTC::RTCP::SenderReport* report)

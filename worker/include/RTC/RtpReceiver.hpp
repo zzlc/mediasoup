@@ -7,6 +7,7 @@
 #include "RTC/RtpStreamRecv.hpp"
 #include "RTC/RTCP/ReceiverReport.hpp"
 #include "RTC/RTCP/Feedback.hpp"
+#include "RTC/RTCP/FeedbackRtpTmmb.hpp"
 #include "RTC/RTCP/CompoundPacket.hpp"
 #include "Channel/Request.hpp"
 #include "Channel/Notifier.hpp"
@@ -58,6 +59,7 @@ namespace RTC
 		void GetRtcp(RTC::RTCP::CompoundPacket *packet, uint64_t now);
 		void ReceiveRtcpFeedback(RTC::RTCP::FeedbackPsPacket* packet);
 		void ReceiveRtcpFeedback(RTC::RTCP::FeedbackRtpPacket* packet);
+		void ReceiveRtcpTmmbr(const RTC::RTCP::FeedbackRtpTmmbrItem* item);
 		void RequestFullFrame() const;
 
 	private:

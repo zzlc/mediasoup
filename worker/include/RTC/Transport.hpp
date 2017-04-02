@@ -58,7 +58,7 @@ namespace RTC
 		void AddRtpReceiver(RTC::RtpReceiver* rtpReceiver);
 		void RemoveRtpReceiver(RTC::RtpReceiver* rtpReceiver);
 		void SendRtpPacket(RTC::RtpPacket* packet);
-		void SendRtcpPacket(RTC::RTCP::Packet* packet);
+		void SendRtcpPacket(const RTC::RTCP::Packet* packet);
 		void SendRtcpCompoundPacket(RTC::RTCP::CompoundPacket* packet);
 		RTC::RtpReceiver* GetRtpReceiver(uint32_t ssrc);
 		bool IsConnected() const;
