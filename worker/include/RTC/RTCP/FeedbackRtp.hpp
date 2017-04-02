@@ -20,7 +20,7 @@ namespace RTC { namespace RTCP
 		// Parsed Report. Points to an external data.
 		explicit FeedbackRtpItemsPacket(CommonHeader* commonHeader);
 		explicit FeedbackRtpItemsPacket(uint32_t sender_ssrc, uint32_t media_ssrc = 0);
-		virtual ~FeedbackRtpItemsPacket() {};
+		virtual ~FeedbackRtpItemsPacket();
 
 		void AddItem(Item* item);
 		Iterator Begin();
@@ -47,6 +47,15 @@ namespace RTC { namespace RTCP
 	FeedbackRtpItemsPacket<Item>::FeedbackRtpItemsPacket(uint32_t sender_ssrc, uint32_t media_ssrc):
 		FeedbackRtpPacket(Item::MessageType, sender_ssrc, media_ssrc)
 	{}
+
+	template<typename Item>
+	FeedbackRtpItemsPacket<Item>::~FeedbackRtpItemsPacket()
+	{
+		for (auto item : this->items)
+		{
+			delete item;
+		}
+	}
 
 	template<typename Item>
 	size_t FeedbackRtpItemsPacket<Item>::GetSize() const
