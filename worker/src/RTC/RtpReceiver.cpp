@@ -364,6 +364,11 @@ namespace RTC
 		RTCP::FeedbackRtpTmmbrPacket packet(0, 0);
 		packet.AddItem(new RTCP::FeedbackRtpTmmbrItem(*item));
 		packet.Serialize(RtpReceiver::rtcpBuffer);
+
+		// TODO: Remove this log.
+		MS_DEBUG_TAG(rtcp, "sending TMMBR packet");
+		packet.Dump();
+
 		this->transport->SendRtcpPacket(&packet);
 	}
 

@@ -675,6 +675,10 @@ namespace RTC
 		packet.AddItem(new RTCP::FeedbackRtpTmmbnItem(*item));
 		packet.Serialize(Room::rtcpBuffer);
 
+		// TODO: Remove this log.
+		MS_DEBUG_TAG(rtcp, "sending TMMBN packet");
+		packet.Dump();
+
 		for (auto& rtpSender : rtpSenders)
 		{
 			rtpSender->SendRtcpPacket(&packet);
