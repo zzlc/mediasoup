@@ -67,13 +67,8 @@ namespace RTC
 		/* Struct for Two-Bytes extension. */
 		struct TwoBytesExtension
 		{
-#if defined(MS_LITTLE_ENDIAN)
-			uint8_t len : 8;
-			uint8_t id : 8;
-#elif defined(MS_BIG_ENDIAN)
 			uint8_t id : 8;
 			uint8_t len : 8;
-#endif
 			uint8_t value[1];
 		};
 
@@ -117,11 +112,11 @@ namespace RTC
 		uint8_t* GetExtension(RTC::RtpHeaderExtensionUri::Type uri, uint8_t* len) const;
 		bool ReadAudioLevel(uint8_t* volume, bool* voice) const;
 		bool ReadAbsSendTime(uint32_t* time) const;
+		bool ReadMid(const uint8_t** data, size_t* len) const;
 		bool ReadRid(const uint8_t** data, size_t* len) const;
 		uint8_t* GetPayload() const;
 		size_t GetPayloadLength() const;
 		uint8_t GetPayloadPadding() const;
-		void SetKeyFrame(bool flag);
 		bool IsKeyFrame() const;
 		RtpPacket* Clone(const uint8_t* buffer) const;
 		void RtxEncode(uint8_t payloadType, uint32_t ssrc, uint16_t seq);
@@ -338,6 +333,22 @@ namespace RTC
 			return false;
 
 		*time = Utils::Byte::Get3Bytes(extenValue, 0);
+
+		return true;
+	}
+
+	inline bool RtpPacket::ReadMid(const uint8_t** data, size_t* len) const
+	{
+		uint8_t extenLen;
+		uint8_t* extenValue;
+
+		extenValue = GetExtension(RTC::RtpHeaderExtensionUri::Type::MID, &extenLen);
+
+		if (!extenValue || extenLen == 0)
+			return false;
+
+		*data = extenValue;
+		*len  = static_cast<size_t>(extenLen);
 
 		return true;
 	}

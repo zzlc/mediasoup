@@ -1,6 +1,136 @@
 # Changelog
 
 
+### 2.6.9
+
+* Remove a potential crash if a single `encoding` is given in the Producer `rtpParameters` and it has a `profile` value.
+
+
+### 2.6.8
+
+* C++: Verify in libuv static callbacks that the associated C++ instance has not been deallocated (thanks @artushin and @mariat-atg for reporting and providing valuable help in #258).
+
+
+### 2.6.7
+
+* Fix wrong destruction of Transports in Router.cpp that generates 100% CPU usage in mediasoup-worker processes.
+
+
+### 2.6.6
+
+* Fix a port leak when a WebRtcTransport is remotely closed due to a DTLS close alert (thanks @artushin for reporting it in #259).
+
+
+### 2.6.5
+
+* RtpPacket: Fix Two-Byte header extensions parsing.
+
+
+### 2.6.4
+
+* Upgrade again to OpenSSL 1.1.0j (20 Nov 2018) after adding a workaround for issue [#257](https://github.com/versatica/mediasoup/issues/257).
+
+
+### 2.6.3
+
+* Downgrade OpenSSL to version 1.1.0h (27 Mar 2018) until issue [#257](https://github.com/versatica/mediasoup/issues/257) is fixed.
+
+
+### 2.6.2
+
+* C++: Remove all `Destroy()` class methods and no longer do `delete this`.
+* Update libuv to 1.24.1.
+* Update OpenSSL to 1.1.0g.
+
+
+### 2.6.1
+
+* worker: Internal refactor and code cleanup.
+* Remove announced support for certain RTCP feedback types that mediasoup does nothing with (and avoid forwarding them to the remote RTP sender).
+* fuzzer: fix some wrong memory access in `RtpPacket::Dump()` and `StunMessage::Dump()` (just used during development).
+
+### 2.6.0
+
+* Integrate [libFuzzer](http://llvm.org/docs/LibFuzzer.html) into mediasoup (documentation in the `doc` folder). Extensive testing done. Several heap-buffer-overflow and memory leaks fixed.
+
+
+### 2.5.6
+
+* `Producer.cpp`: Remove `UpdateRtpParameters()`. It was broken since Consumers
+  were not notified about profile removed and so on, so they may crash.
+* `Producer.cpp: Remove some maps and simplify streams handling by having a
+  single `mapSsrcRtpStreamInfo`. Just keep `mapActiveProfiles` because
+  `GetActiveProfiles()` method needs it.
+* `Producer::MayNeedNewStream()`: Ignore new media streams with new SSRC if
+  its RID is already in use by other media stream (fixes #235).
+* Fix a bad memory access when using two byte RTP header extensions.
+
+
+### 2.5.5
+
+* `Server.js`: If a worker crashes make sure `_latestWorkerIdx` becomes 0.
+
+
+### 2.5.4
+
+* `server.Room()`: Assign workers incrementally or explicitely via new `workerIdx` argument.
+* Add `server.numWorkers` getter.
+
+
+### 2.5.3
+
+* Don't announce `muxId` nor RTP MID extension support in `Consumer` RTP parameters.
+
+
+### 2.5.2
+
+* Enable RTP MID extension again.
+
+
+### 2.5.1
+
+* Disable RTP MID extension until [#230](https://github.com/versatica/mediasoup/issues/230) is fixed.
+
+
+### 2.5.0
+
+* Add RTP MID extension support.
+
+### 2.4.6
+
+* Do not close `Transport` on ICE disconnected (as it would prevent ICE restart on "recv" TCP transports).
+
+
+### 2.4.5
+
+* Improve codec matching.
+
+
+### 2.4.4
+
+* Fix audio codec matching when `channels` parameter is not given.
+
+
+### 2.4.3
+
+* Make `PlainRtpTransport` not leak if port allocation fails (related issue [#224](https://github.com/versatica/mediasoup/issues/224)).
+
+
+### 2.4.2
+
+* Fix a crash in when no more RTP ports were available (see related issue [#222](https://github.com/versatica/mediasoup/issues/222)).
+
+
+### 2.4.1
+
+* Update dependencies.
+
+
+### 2.4.0
+
+* Allow non WebRTC peers to create plain RTP transports (no ICE/DTLS/SRTP but just plain RTP and RTCP) for sending and receiving media.
+
+
 ### 2.3.3
 
 * Fix C++ syntax to avoid an error when building the worker with clang 8.0.0 (OSX 10.11.6).

@@ -38,12 +38,9 @@ namespace RTC
 
 	public:
 		Router(Listener* listener, Channel::Notifier* notifier, uint32_t routerId);
-
-	private:
 		virtual ~Router();
 
 	public:
-		void Destroy();
 		Json::Value ToJson() const;
 		void HandleRequest(Channel::Request* request);
 
@@ -58,13 +55,10 @@ namespace RTC
 		/* Pure virtual methods inherited from RTC::Transport::Listener. */
 	public:
 		void OnTransportClosed(RTC::Transport* transport) override;
-		void OnTransportReceiveRtcpFeedback(
-		  RTC::Transport* transport, RTC::Consumer* consumer, RTC::RTCP::FeedbackPsPacket* packet) override;
 
 		/* Pure virtual methods inherited from RTC::ProducerListener. */
 	public:
 		void OnProducerClosed(RTC::Producer* producer) override;
-		void OnProducerRtpParametersUpdated(RTC::Producer* producer) override;
 		void OnProducerPaused(RTC::Producer* producer) override;
 		void OnProducerResumed(RTC::Producer* producer) override;
 		void OnProducerRtpPacket(

@@ -39,6 +39,9 @@ Worker::Worker(Channel::UnixStreamSocket* channel) : channel(channel)
 Worker::~Worker()
 {
 	MS_TRACE();
+
+	if (!this->closed)
+		Close();
 }
 
 void Worker::Close()
@@ -46,17 +49,12 @@ void Worker::Close()
 	MS_TRACE();
 
 	if (this->closed)
-	{
-		MS_ERROR("already closed");
-
 		return;
-	}
 
 	this->closed = true;
 
 	// Close the SignalsHandler.
-	if (this->signalsHandler != nullptr)
-		this->signalsHandler->Destroy();
+	delete this->signalsHandler;
 
 	// Close all the Routers.
 	// NOTE: Upon Router closure the onRouterClosed() method is called, which
@@ -67,15 +65,14 @@ void Worker::Close()
 		RTC::Router* router = it->second;
 
 		it = this->routers.erase(it);
-		router->Destroy();
+		delete router;
 	}
 
 	// Delete the Notifier.
 	delete this->notifier;
 
 	// Close the Channel socket.
-	if (this->channel != nullptr)
-		this->channel->Destroy();
+	delete this->channel;
 }
 
 RTC::Router* Worker::GetRouterFromRequest(Channel::Request* request, uint32_t* routerId)
@@ -111,17 +108,27 @@ void Worker::OnSignal(SignalsHandler* /*signalsHandler*/, int signum)
 	switch (signum)
 	{
 		case SIGINT:
+		{
 			MS_DEBUG_DEV("signal INT received, exiting");
+
 			Close();
+
 			break;
+		}
 
 		case SIGTERM:
+		{
 			MS_DEBUG_DEV("signal TERM received, exiting");
+
 			Close();
+
 			break;
+		}
 
 		default:
+		{
 			MS_WARN_DEV("received a signal (with signum %d) for which there is no handling code", signum);
+		}
 	}
 }
 
@@ -231,7 +238,8 @@ void Worker::OnChannelRequest(Channel::UnixStreamSocket* /*channel*/, Channel::R
 				return;
 			}
 
-			router->Destroy();
+			delete router;
+
 			request->Accept();
 
 			break;
@@ -247,6 +255,7 @@ void Worker::OnChannelRequest(Channel::UnixStreamSocket* /*channel*/, Channel::R
 		case Channel::Request::MethodId::TRANSPORT_DUMP:
 		case Channel::Request::MethodId::TRANSPORT_GET_STATS:
 		case Channel::Request::MethodId::TRANSPORT_SET_REMOTE_DTLS_PARAMETERS:
+		case Channel::Request::MethodId::TRANSPORT_SET_REMOTE_PARAMETERS:
 		case Channel::Request::MethodId::TRANSPORT_SET_MAX_BITRATE:
 		case Channel::Request::MethodId::TRANSPORT_CHANGE_UFRAG_PWD:
 		case Channel::Request::MethodId::TRANSPORT_START_MIRRORING:
@@ -254,7 +263,6 @@ void Worker::OnChannelRequest(Channel::UnixStreamSocket* /*channel*/, Channel::R
 		case Channel::Request::MethodId::PRODUCER_CLOSE:
 		case Channel::Request::MethodId::PRODUCER_DUMP:
 		case Channel::Request::MethodId::PRODUCER_GET_STATS:
-		case Channel::Request::MethodId::PRODUCER_UPDATE_RTP_PARAMETERS:
 		case Channel::Request::MethodId::PRODUCER_PAUSE:
 		case Channel::Request::MethodId::PRODUCER_RESUME:
 		case Channel::Request::MethodId::PRODUCER_SET_PREFERRED_PROFILE:
@@ -311,8 +319,6 @@ void Worker::OnChannelUnixStreamSocketRemotelyClosed(Channel::UnixStreamSocket* 
 	// If the pipe is remotely closed it means that mediasoup Node process
 	// abruptly died (SIGKILL?) so we must die.
 	MS_ERROR_STD("Channel remotely closed, killing myself");
-
-	this->channel = nullptr;
 
 	Close();
 }

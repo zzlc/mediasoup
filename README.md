@@ -3,6 +3,8 @@
 [![][npm-shield-mediasoup]][npm-mediasoup]
 [![][travis-ci-shield-mediasoup]][travis-ci-mediasoup]
 [![][codacy-grade-shield-mediasoup]][codacy-grade-mediasoup]
+[![][opencollective-shield-mediasoup]][opencollective-mediasoup]
+
 
 
 ## Website and documentation
@@ -36,7 +38,7 @@
 
 ## Donate
 
-You can support **mediasoup** by making a donation [here][paypal-url]. Thanks!
+You can support **mediasoup** by making a donation in [open collective][opencollective-mediasoup]. Thanks!
 
 
 ## License
@@ -49,10 +51,11 @@ You can support **mediasoup** by making a donation [here][paypal-url]. Thanks!
 [mediasoup-banner]: https://raw.githubusercontent.com/versatica/mediasoup-website/master/_art/mediasoup_banner.png
 [mediasoup-demo-screenshot]: https://raw.githubusercontent.com/versatica/mediasoup-website/master/_art/mediasoup-opensips-summit-2017.jpg
 [mediasoup-website]: https://mediasoup.org
-[travis-ci-shield-mediasoup]: https://img.shields.io/travis/versatica/mediasoup/master.svg
-[travis-ci-mediasoup]: http://travis-ci.org/versatica/mediasoup
+[travis-ci-shield-mediasoup]: https://travis-ci.com/versatica/mediasoup.svg?branch=master
+[travis-ci-mediasoup]: https://travis-ci.com/versatica/mediasoup
 [npm-shield-mediasoup]: https://img.shields.io/npm/v/mediasoup.svg
 [npm-mediasoup]: https://npmjs.org/package/mediasoup
 [codacy-grade-shield-mediasoup]: https://img.shields.io/codacy/grade/3c8b9efc83674b6189707ab4188cfb2b.svg
 [codacy-grade-mediasoup]: https://www.codacy.com/app/versatica/mediasoup
-[paypal-url]: https://paypal.me/inakibazcastillo/100
+[opencollective-shield-mediasoup]: https://img.shields.io/opencollective/all/mediasoup.svg
+[opencollective-mediasoup]: https://opencollective.com/mediasoup/donate

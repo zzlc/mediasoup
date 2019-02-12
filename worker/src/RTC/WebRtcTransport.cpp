@@ -163,7 +163,17 @@ namespace RTC
 		// Ensure there is at least one IP:port binding.
 		if (this->udpSockets.empty() && this->tcpServers.empty())
 		{
-			delete this;
+			delete this->iceServer;
+
+			for (auto* socket : this->udpSockets)
+			{
+				delete socket;
+			}
+
+			for (auto* server : this->tcpServers)
+			{
+				delete server;
+			}
 
 			MS_THROW_ERROR("could not open any IP:port");
 		}
@@ -182,31 +192,29 @@ namespace RTC
 	{
 		MS_TRACE();
 
-		if (this->srtpRecvSession != nullptr)
-			this->srtpRecvSession->Destroy();
+		// It's important deleting DTLS transport first since it will generate a
+		// DTLS alert to be sent.
+		delete this->dtlsTransport;
 
-		if (this->srtpSendSession != nullptr)
-			this->srtpSendSession->Destroy();
-
-		if (this->dtlsTransport != nullptr)
-			this->dtlsTransport->Destroy();
-
-		if (this->iceServer != nullptr)
-			this->iceServer->Destroy();
+		delete this->iceServer;
 
 		for (auto* socket : this->udpSockets)
 		{
-			socket->Destroy();
+			delete socket;
 		}
 		this->udpSockets.clear();
 
 		for (auto* server : this->tcpServers)
 		{
-			server->Destroy();
+			delete server;
 		}
 		this->tcpServers.clear();
 
-		this->selectedTuple = nullptr;
+		if (this->srtpRecvSession != nullptr)
+			delete this->srtpRecvSession;
+
+		if (this->srtpSendSession != nullptr)
+			delete this->srtpSendSession;
 	}
 
 	Json::Value WebRtcTransport::ToJson() const
@@ -239,6 +247,7 @@ namespace RTC
 		static const Json::StaticString JsonStringFailed{ "failed" };
 		static const Json::StaticString JsonStringHeaderExtensionIds{ "headerExtensionIds" };
 		static const Json::StaticString JsonStringAbsSendTime{ "absSendTime" };
+		static const Json::StaticString JsonStringMid{ "mid" };
 		static const Json::StaticString JsonStringRid{ "rid" };
 		static const Json::StaticString JsonStringRtpListener{ "rtpListener" };
 
@@ -329,6 +338,9 @@ namespace RTC
 		if (this->headerExtensionIds.absSendTime != 0u)
 			jsonHeaderExtensionIds[JsonStringAbsSendTime] = this->headerExtensionIds.absSendTime;
 
+		if (this->headerExtensionIds.mid != 0u)
+			jsonHeaderExtensionIds[JsonStringMid] = this->headerExtensionIds.mid;
+
 		if (this->headerExtensionIds.rid != 0u)
 			jsonHeaderExtensionIds[JsonStringRid] = this->headerExtensionIds.rid;
 
@@ -344,7 +356,7 @@ namespace RTC
 	{
 		MS_TRACE();
 
-		static const std::string type("transport");
+		static const std::string Type("transport");
 		static const Json::StaticString JsonStringType{ "type" };
 		static const Json::StaticString JsonStringTimestamp{ "timestamp" };
 		static const Json::StaticString JsonStringId{ "id" };
@@ -373,7 +385,7 @@ namespace RTC
 
 		Json::Value json(Json::objectValue);
 
-		json[JsonStringType]      = type;
+		json[JsonStringType]      = Type;
 		json[JsonStringTimestamp] = Json::UInt64{ DepLibUV::GetTime() };
 		json[JsonStringId]        = Json::UInt{ this->transportId };
 
@@ -840,15 +852,19 @@ namespace RTC
 		}
 
 		// Apply the Transport RTP header extension ids so the RTP listener can use them.
-		if (this->headerExtensionIds.rid != 0u)
-		{
-			packet->AddExtensionMapping(
-			  RtpHeaderExtensionUri::Type::RTP_STREAM_ID, this->headerExtensionIds.rid);
-		}
 		if (this->headerExtensionIds.absSendTime != 0u)
 		{
 			packet->AddExtensionMapping(
 			  RtpHeaderExtensionUri::Type::ABS_SEND_TIME, this->headerExtensionIds.absSendTime);
+		}
+		if (this->headerExtensionIds.mid != 0u)
+		{
+			packet->AddExtensionMapping(RtpHeaderExtensionUri::Type::MID, this->headerExtensionIds.mid);
+		}
+		if (this->headerExtensionIds.rid != 0u)
+		{
+			packet->AddExtensionMapping(
+			  RtpHeaderExtensionUri::Type::RTP_STREAM_ID, this->headerExtensionIds.rid);
 		}
 
 		// Feed the remote bitrate estimator (REMB).
@@ -1064,9 +1080,6 @@ namespace RTC
 		// Notify.
 		eventData[JsonStringIceState] = JsonStringDisconnected;
 		this->notifier->Emit(this->transportId, "icestatechange", eventData);
-
-		// This is a fatal error so close the transport.
-		Destroy();
 	}
 
 	void WebRtcTransport::OnDtlsConnecting(const RTC::DtlsTransport* /*dtlsTransport*/)
@@ -1107,12 +1120,12 @@ namespace RTC
 		// Close it if it was already set and update it.
 		if (this->srtpSendSession != nullptr)
 		{
-			this->srtpSendSession->Destroy();
+			delete this->srtpSendSession;
 			this->srtpSendSession = nullptr;
 		}
 		if (this->srtpRecvSession != nullptr)
 		{
-			this->srtpRecvSession->Destroy();
+			delete this->srtpRecvSession;
 			this->srtpRecvSession = nullptr;
 		}
 
@@ -1135,7 +1148,7 @@ namespace RTC
 		{
 			MS_ERROR("error creating SRTP receiving session: %s", error.what());
 
-			this->srtpSendSession->Destroy();
+			delete this->srtpSendSession;
 			this->srtpSendSession = nullptr;
 		}
 
@@ -1168,9 +1181,6 @@ namespace RTC
 		// Notify.
 		eventData[JsonStringDtlsState] = JsonStringFailed;
 		this->notifier->Emit(this->transportId, "dtlsstatechange", eventData);
-
-		// This is a fatal error so close the transport.
-		Destroy();
 	}
 
 	void WebRtcTransport::OnDtlsClosed(const RTC::DtlsTransport* /*dtlsTransport*/)
@@ -1187,9 +1197,6 @@ namespace RTC
 		// Notify.
 		eventData[JsonStringDtlsState] = JsonStringClosed;
 		this->notifier->Emit(this->transportId, "dtlsstatechange", eventData);
-
-		// This is a fatal error so close the transport.
-		Destroy();
 	}
 
 	void WebRtcTransport::OnOutgoingDtlsData(

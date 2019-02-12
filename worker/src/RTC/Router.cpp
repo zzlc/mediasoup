@@ -33,11 +33,6 @@ namespace RTC
 	Router::~Router()
 	{
 		MS_TRACE();
-	}
-
-	void Router::Destroy()
-	{
-		MS_TRACE();
 
 		// Close all the Producers.
 		for (auto it = this->producers.begin(); it != this->producers.end();)
@@ -45,7 +40,7 @@ namespace RTC
 			auto* producer = it->second;
 
 			it = this->producers.erase(it);
-			producer->Destroy();
+			delete producer;
 		}
 
 		// Close all the Consumers.
@@ -54,27 +49,25 @@ namespace RTC
 			auto* consumer = it->second;
 
 			it = this->consumers.erase(it);
-			consumer->Destroy();
+			delete consumer;
 		}
 
 		// Close all the Transports.
 		// NOTE: It is critical to close Transports after Producers/Consumers
-		// because their Destroy() method fires an event in the Transport.
+		// because their destructor fires an event in the Transport.
 		for (auto it = this->transports.begin(); it != this->transports.end();)
 		{
 			auto* transport = it->second;
 
 			it = this->transports.erase(it);
-			transport->Destroy();
+			delete transport;
 		}
 
 		// Close the audio level timer.
-		this->audioLevelsTimer->Destroy();
+		delete this->audioLevelsTimer;
 
 		// Notify the listener.
 		this->listener->OnRouterClosed(this);
-
-		delete this;
 	}
 
 	Json::Value Router::ToJson() const
@@ -241,6 +234,8 @@ namespace RTC
 				static const Json::StaticString JsonStringRemoteIP{ "remoteIP" };
 				static const Json::StaticString JsonStringRemotePort{ "remotePort" };
 				static const Json::StaticString JsonStringLocalIP{ "localIP" };
+				static const Json::StaticString JsonStringPreferIPv4{ "preferIPv4" };
+				static const Json::StaticString JsonStringPreferIPv6{ "preferIPv6" };
 
 				uint32_t transportId;
 
@@ -257,26 +252,20 @@ namespace RTC
 
 				RTC::PlainRtpTransport::Options options;
 
-				if (!request->data[JsonStringRemoteIP].isString())
-				{
-					request->Reject("missing remoteIP");
+				if (request->data[JsonStringRemoteIP].isString())
+					options.remoteIP = request->data[JsonStringRemoteIP].asString();
 
-					return;
-				}
-
-				options.remoteIP = request->data[JsonStringRemoteIP].asString();
-
-				if (!request->data[JsonStringRemotePort].isUInt())
-				{
-					request->Reject("missing remotePort");
-
-					return;
-				}
-
-				options.remotePort = request->data[JsonStringRemotePort].asUInt();
+				if (request->data[JsonStringRemotePort].isUInt())
+					options.remotePort = request->data[JsonStringRemotePort].asUInt();
 
 				if (request->data[JsonStringLocalIP].isString())
 					options.localIP = request->data[JsonStringLocalIP].asString();
+
+				if (request->data[JsonStringPreferIPv4].isBool())
+					options.preferIPv4 = request->data[JsonStringPreferIPv4].asBool();
+
+				if (request->data[JsonStringPreferIPv6].isBool())
+					options.preferIPv6 = request->data[JsonStringPreferIPv6].asBool();
 
 				RTC::PlainRtpTransport* plainRtpTransport;
 
@@ -605,9 +594,9 @@ namespace RTC
 					return;
 				}
 
-				transport->Destroy();
-
 				MS_DEBUG_DEV("Transport closed [transportId:%" PRIu32 "]", transport->transportId);
+
+				delete transport;
 
 				request->Accept();
 
@@ -763,6 +752,60 @@ namespace RTC
 				}
 
 				request->Accept(data);
+
+				break;
+			}
+
+			case Channel::Request::MethodId::TRANSPORT_SET_REMOTE_PARAMETERS:
+			{
+				static const Json::StaticString JsonStringIP{ "ip" };
+				static const Json::StaticString JsonStringPort{ "port" };
+
+				RTC::Transport* transport;
+
+				try
+				{
+					transport = GetTransportFromRequest(request);
+				}
+				catch (const MediaSoupError& error)
+				{
+					request->Reject(error.what());
+
+					return;
+				}
+
+				if (!request->data[JsonStringIP].isString())
+				{
+					request->Reject("missing data.ip");
+
+					return;
+				}
+
+				if (!request->data[JsonStringPort].isUInt())
+				{
+					request->Reject("missing data.port");
+
+					return;
+				}
+
+				auto ip   = std::string{ request->data[JsonStringIP].asString() };
+				auto port = uint32_t{ request->data[JsonStringPort].asUInt() };
+
+				try
+				{
+					auto* plainRtpTransport = dynamic_cast<RTC::PlainRtpTransport*>(transport);
+
+					// This may throw.
+					plainRtpTransport->SetRemoteParameters(ip, port);
+				}
+				catch (const MediaSoupError& error)
+				{
+					request->Reject(error.what());
+
+					return;
+				}
+
+				request->Accept();
 
 				break;
 			}
@@ -949,9 +992,9 @@ namespace RTC
 					return;
 				}
 
-				producer->Destroy();
-
 				MS_DEBUG_DEV("Producer closed [producerId:%" PRIu32 "]", producer->producerId);
+
+				delete producer;
 
 				request->Accept();
 
@@ -998,52 +1041,6 @@ namespace RTC
 				auto json = producer->GetStats();
 
 				request->Accept(json);
-
-				break;
-			}
-
-			case Channel::Request::MethodId::PRODUCER_UPDATE_RTP_PARAMETERS:
-			{
-				static const Json::StaticString JsonStringRtpParameters{ "rtpParameters" };
-
-				RTC::Producer* producer;
-
-				try
-				{
-					producer = GetProducerFromRequest(request);
-				}
-				catch (const MediaSoupError& error)
-				{
-					request->Reject(error.what());
-
-					return;
-				}
-
-				if (!request->data[JsonStringRtpParameters].isObject())
-				{
-					request->Reject("missing data.rtpParameters");
-
-					return;
-				}
-
-				RTC::RtpParameters rtpParameters;
-
-				try
-				{
-					// NOTE: This may throw.
-					rtpParameters = RTC::RtpParameters(request->data[JsonStringRtpParameters]);
-
-					// NOTE: This may throw.
-					producer->UpdateRtpParameters(rtpParameters);
-				}
-				catch (const MediaSoupError& error)
-				{
-					request->Reject(error.what());
-
-					return;
-				}
-
-				request->Accept();
 
 				break;
 			}
@@ -1167,7 +1164,9 @@ namespace RTC
 					return;
 				}
 
-				consumer->Destroy();
+				MS_DEBUG_DEV("Consumer closed [consumerId:%" PRIu32 "]", consumer->consumerId);
+
+				delete consumer;
 
 				request->Accept();
 
@@ -1600,20 +1599,6 @@ namespace RTC
 		this->transports.erase(transport->transportId);
 	}
 
-	void Router::OnTransportReceiveRtcpFeedback(
-	  RTC::Transport* /*transport*/, RTC::Consumer* consumer, RTC::RTCP::FeedbackPsPacket* packet)
-	{
-		MS_TRACE();
-
-		MS_ASSERT(
-		  this->mapConsumerProducer.find(consumer) != this->mapConsumerProducer.end(),
-		  "Consumer not present in mapConsumerProducer");
-
-		auto* producer = this->mapConsumerProducer[consumer];
-
-		producer->ReceiveRtcpFeedback(packet);
-	}
-
 	void Router::OnProducerClosed(RTC::Producer* producer)
 	{
 		MS_TRACE();
@@ -1621,6 +1606,7 @@ namespace RTC
 		this->producers.erase(producer->producerId);
 
 		// Remove the Producer from the map.
+		// NOTE: It may not exist if it failed before being inserted into the maps.
 		if (this->mapProducerConsumers.find(producer) != this->mapProducerConsumers.end())
 		{
 			// Iterate the map and close all the Consumers associated to it.
@@ -1631,7 +1617,7 @@ namespace RTC
 				auto* consumer = *it;
 
 				it = consumers.erase(it);
-				consumer->Destroy();
+				delete consumer;
 			}
 
 			// Finally delete the Producer entry in the map.
@@ -1640,20 +1626,6 @@ namespace RTC
 
 		// Also delete it from the map of audio levels.
 		this->mapProducerAudioLevelContainer.erase(producer);
-	}
-
-	void Router::OnProducerRtpParametersUpdated(RTC::Producer* producer)
-	{
-		MS_ASSERT(
-		  this->mapProducerConsumers.find(producer) != this->mapProducerConsumers.end(),
-		  "Producer not present in mapProducerConsumers");
-
-		auto& consumers = this->mapProducerConsumers[producer];
-
-		for (auto* consumer : consumers)
-		{
-			consumer->SourceRtpParametersUpdated();
-		}
 	}
 
 	void Router::OnProducerPaused(RTC::Producer* producer)
@@ -1684,8 +1656,7 @@ namespace RTC
 
 		for (auto* consumer : consumers)
 		{
-			if (consumer->IsEnabled())
-				consumer->SourceResume();
+			consumer->SourceResume();
 		}
 	}
 

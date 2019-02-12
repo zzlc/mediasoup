@@ -34,12 +34,9 @@ namespace RTC
 		  uint32_t consumerId,
 		  RTC::Media::Kind kind,
 		  uint32_t sourceProducerId);
-
-	private:
 		virtual ~Consumer();
 
 	public:
-		void Destroy();
 		Json::Value ToJson() const;
 		Json::Value GetStats() const;
 		void AddListener(RTC::ConsumerListener* listener);
@@ -51,7 +48,6 @@ namespace RTC
 		void SourceResume();
 		void AddProfile(const RTC::RtpEncodingParameters::Profile profile, const RTC::RtpStream* rtpStream);
 		void RemoveProfile(const RTC::RtpEncodingParameters::Profile profile);
-		void SourceRtpParametersUpdated();
 		void SetPreferredProfile(const RTC::RtpEncodingParameters::Profile profile);
 		void SetSourcePreferredProfile(const RTC::RtpEncodingParameters::Profile profile);
 		void SetEncodingPreferences(const RTC::Codecs::EncodingContext::Preferences preferences);

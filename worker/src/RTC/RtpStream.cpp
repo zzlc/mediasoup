@@ -18,12 +18,10 @@ namespace RTC
 
 	/* Instance methods. */
 
-	RtpStream::RtpStream(RTC::RtpStream::Params& params) : params(params)
+	RtpStream::RtpStream(RTC::RtpStream::Params& params)
+	  : params(params), rtpStreamId(Utils::Crypto::GetRandomString(16))
 	{
 		MS_TRACE();
-
-		// Generate a random rtpStreamId.
-		this->rtpStreamId = Utils::Crypto::GetRandomString(16);
 
 		// Set the status check timer.
 		this->statusCheckTimer = new Timer(this);
@@ -34,7 +32,7 @@ namespace RTC
 		MS_TRACE();
 
 		// Close the status check timer.
-		this->statusCheckTimer->Destroy();
+		delete this->statusCheckTimer;
 	}
 
 	Json::Value RtpStream::ToJson()
@@ -147,7 +145,6 @@ namespace RTC
 	void RtpStream::RestartStatusCheckTimer()
 	{
 		// Notify about status on next check.
-		this->notifyStatus = true;
 		this->statusCheckTimer->Restart();
 	}
 
@@ -262,8 +259,6 @@ namespace RTC
 		MS_TRACE();
 
 		if (timer == this->statusCheckTimer)
-		{
 			CheckStatus();
-		}
 	}
 } // namespace RTC

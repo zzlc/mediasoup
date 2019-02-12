@@ -50,7 +50,7 @@ namespace RTC
 {
 	/* Static. */
 
-	static constexpr int dtlsMtu{ 1350 };
+	static constexpr int DtlsMtu{ 1350 };
 	static constexpr int SslReadBufferSize{ 65536 };
 	// NOTE: Those values are hardcoded as we just use AES_CM_128_HMAC_SHA1_80 and
 	// AES_CM_128_HMAC_SHA1_32 which share same length values for key and salt.
@@ -551,8 +551,8 @@ namespace RTC
 
 		SSL_set_bio(this->ssl, this->sslBioFromNetwork, this->sslBioToNetwork);
 		// Set the MTU so that we don't send packets that are too large with no fragmentation.
-		SSL_set_mtu(this->ssl, dtlsMtu);
-		DTLS_set_link_mtu(this->ssl, dtlsMtu);
+		SSL_set_mtu(this->ssl, DtlsMtu);
+		DTLS_set_link_mtu(this->ssl, DtlsMtu);
 
 		/* Set the DTLS timer. */
 
@@ -579,19 +579,6 @@ namespace RTC
 	{
 		MS_TRACE();
 
-		if (this->ssl != nullptr)
-		{
-			SSL_free(this->ssl);
-			this->ssl               = nullptr;
-			this->sslBioFromNetwork = nullptr;
-			this->sslBioToNetwork   = nullptr;
-		}
-	}
-
-	void DtlsTransport::Destroy()
-	{
-		MS_TRACE();
-
 		if (IsRunning())
 		{
 			// Send close alert to the peer.
@@ -599,25 +586,31 @@ namespace RTC
 			SendPendingOutgoingDtlsData();
 		}
 
-		// Destroy the DTLS timer.
-		this->timer->Destroy();
+		if (this->ssl != nullptr)
+		{
+			SSL_free(this->ssl);
+			this->ssl               = nullptr;
+			this->sslBioFromNetwork = nullptr;
+			this->sslBioToNetwork   = nullptr;
+		}
 
-		delete this;
+		// Close the DTLS timer.
+		delete this->timer;
 	}
 
 	void DtlsTransport::Dump() const
 	{
 		MS_TRACE();
 
-		MS_DUMP("<DtlsTransport>");
-		MS_DUMP(
+		MS_DEBUG_DEV("<DtlsTransport>");
+		MS_DEBUG_DEV(
 		  "  [role:%s, running:%s, handshake done:%s, connected:%s]",
 		  (this->localRole == Role::SERVER ? "server"
 		                                   : (this->localRole == Role::CLIENT ? "client" : "none")),
 		  IsRunning() ? "yes" : "no",
 		  this->handshakeDone ? "yes" : "no",
 		  this->state == DtlsState::CONNECTED ? "yes" : "no");
-		MS_DUMP("</DtlsTransport>");
+		MS_DEBUG_DEV("</DtlsTransport>");
 	}
 
 	void DtlsTransport::Run(Role localRole)
@@ -655,23 +648,31 @@ namespace RTC
 		switch (this->localRole)
 		{
 			case Role::CLIENT:
+			{
 				MS_DEBUG_TAG(dtls, "running [role:client]");
 
 				SSL_set_connect_state(this->ssl);
 				SSL_do_handshake(this->ssl);
 				SendPendingOutgoingDtlsData();
 				SetTimeout();
+
 				break;
+			}
 
 			case Role::SERVER:
+			{
 				MS_DEBUG_TAG(dtls, "running [role:server]");
 
 				SSL_set_accept_state(this->ssl);
 				SSL_do_handshake(this->ssl);
+
 				break;
+			}
 
 			default:
+			{
 				MS_ABORT("invalid local DTLS role");
+			}
 		}
 	}
 
@@ -873,8 +874,8 @@ namespace RTC
 			// Process the handshake just once (ignore if DTLS renegotiation).
 			if (!wasHandshakeDone && this->remoteFingerprint.algorithm != FingerprintAlgorithm::NONE)
 				return ProcessHandshake();
-			else
-				return true;
+
+			return true;
 		}
 		// Check if the peer sent close alert or a fatal error happened.
 		else if (((SSL_get_shutdown(this->ssl) & SSL_RECEIVED_SHUTDOWN) != 0) || err == SSL_ERROR_SSL || err == SSL_ERROR_SYSCALL)
@@ -922,7 +923,7 @@ namespace RTC
 		if (read <= 0)
 			return;
 
-		MS_DEBUG_DEV("%ld bytes of DTLS data ready to sent to the peer", read);
+		MS_DEBUG_DEV("%" PRIu64 " bytes of DTLS data ready to sent to the peer", read);
 
 		// Notify the listener.
 		this->listener->OnOutgoingDtlsData(
@@ -942,16 +943,21 @@ namespace RTC
 		  "invalid DTLS state");
 
 		int64_t ret;
-		struct timeval dtlsTimeout;
+		struct timeval dtlsTimeout
+		{
+			0, 0
+		};
 		uint64_t timeoutMs;
 
 		// NOTE: If ret == 0 then ignore the value in dtlsTimeout.
 		// NOTE: No DTLSv_1_2_get_timeout() or DTLS_get_timeout() in OpenSSL 1.1.0-dev.
 		ret = DTLSv1_get_timeout(this->ssl, (void*)&dtlsTimeout); // NOLINT
+
 		if (ret == 0)
 			return true;
 
 		timeoutMs = (dtlsTimeout.tv_sec * static_cast<uint64_t>(1000)) + (dtlsTimeout.tv_usec / 1000);
+
 		if (timeoutMs == 0)
 		{
 			return true;
@@ -1008,20 +1014,18 @@ namespace RTC
 
 			return true;
 		}
-		else
-		{
-			// NOTE: We assume that "use_srtp" DTLS extension is required even if
-			// there is no audio/video.
-			MS_WARN_TAG(dtls, "SRTP profile not negotiated");
 
-			Reset();
+		// NOTE: We assume that "use_srtp" DTLS extension is required even if
+		// there is no audio/video.
+		MS_WARN_TAG(dtls, "SRTP profile not negotiated");
 
-			// Set state and notify the listener.
-			this->state = DtlsState::FAILED;
-			this->listener->OnDtlsFailed(this);
+		Reset();
 
-			return false;
-		}
+		// Set state and notify the listener.
+		this->state = DtlsState::FAILED;
+		this->listener->OnDtlsFailed(this);
+
+		return false;
 	}
 
 	inline bool DtlsTransport::CheckRemoteFingerprint()
@@ -1168,15 +1172,16 @@ namespace RTC
 				srtpRemoteSalt = srtpLocalKey + SrtpMasterKeyLength;
 				srtpLocalSalt  = srtpRemoteSalt + SrtpMasterSaltLength;
 				break;
+
 			case Role::CLIENT:
 				srtpLocalKey   = srtpMaterial;
 				srtpRemoteKey  = srtpLocalKey + SrtpMasterKeyLength;
 				srtpLocalSalt  = srtpRemoteKey + SrtpMasterKeyLength;
 				srtpRemoteSalt = srtpLocalSalt + SrtpMasterSaltLength;
 				break;
+
 			default:
 				MS_ABORT("no DTLS role set");
-				break;
 		}
 
 		// Create the SRTP local master key.
@@ -1305,9 +1310,20 @@ namespace RTC
 	{
 		MS_TRACE();
 
+		if (this->handshakeDone)
+		{
+			MS_DEBUG_DEV("handshake is done so return");
+
+			return;
+		}
+
+		// Tell OpenSSL to write data to be retransmitted into the BIO mem.
+		// https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#DTLSv1_handle_timeout
 		DTLSv1_handle_timeout(this->ssl);
+
 		// If required, send DTLS data.
 		SendPendingOutgoingDtlsData();
+
 		// Set the DTLS timer again.
 		SetTimeout();
 	}

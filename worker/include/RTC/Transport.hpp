@@ -6,8 +6,6 @@
 #include "RTC/ConsumerListener.hpp"
 #include "RTC/ProducerListener.hpp"
 #include "RTC/RTCP/CompoundPacket.hpp"
-#include "RTC/RTCP/FeedbackPsAfb.hpp"
-#include "RTC/RTCP/FeedbackPsRemb.hpp"
 #include "RTC/RTCP/Packet.hpp"
 #include "RTC/RTCP/ReceiverReport.hpp"
 #include "RTC/RtpListener.hpp"
@@ -37,8 +35,6 @@ namespace RTC
 		{
 		public:
 			virtual void OnTransportClosed(RTC::Transport* transport) = 0;
-			virtual void OnTransportReceiveRtcpFeedback(
-			  RTC::Transport* transport, RTC::Consumer* consumer, RTC::RTCP::FeedbackPsPacket* packet) = 0;
 		};
 
 	public:
@@ -49,6 +45,7 @@ namespace RTC
 		struct HeaderExtensionIds
 		{
 			uint8_t absSendTime{ 0 }; // 0 means no abs-send-time id.
+			uint8_t mid{ 0 };         // 0 means no MID id.
 			uint8_t rid{ 0 };         // 0 means no RID id.
 		};
 
@@ -68,12 +65,9 @@ namespace RTC
 
 	public:
 		Transport(Listener* listener, Channel::Notifier* notifier, uint32_t transportId);
-
-	protected:
 		virtual ~Transport();
 
 	public:
-		void Destroy();
 		virtual Json::Value ToJson() const   = 0;
 		virtual Json::Value GetStats() const = 0;
 		void HandleProducer(RTC::Producer* producer);
@@ -85,7 +79,6 @@ namespace RTC
 
 	protected:
 		void HandleRtcpPacket(RTC::RTCP::Packet* packet);
-		void ReceiveRtcpRemb(RTC::RTCP::FeedbackPsRembPacket* remb);
 
 	private:
 		virtual bool IsConnected() const = 0;
@@ -96,7 +89,6 @@ namespace RTC
 		/* Pure virtual methods inherited from RTC::ProducerListener. */
 	public:
 		void OnProducerClosed(RTC::Producer* producer) override;
-		void OnProducerRtpParametersUpdated(RTC::Producer* producer) override;
 		void OnProducerPaused(RTC::Producer* producer) override;
 		void OnProducerResumed(RTC::Producer* producer) override;
 		void OnProducerRtpPacket(
@@ -134,7 +126,6 @@ namespace RTC
 		Channel::Notifier* notifier{ nullptr };
 		// Allocated by this.
 		Timer* rtcpTimer{ nullptr };
-		// Allocated (Mirroring).
 		RTC::UdpSocket* mirrorSocket{ nullptr };
 		RTC::TransportTuple* mirrorTuple{ nullptr };
 		// Others (Producers and Consumers).
